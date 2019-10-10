@@ -14,7 +14,6 @@ class StoryDetailsController: UIViewController, UITableViewDelegate, UITableView
     
     @IBAction func review(_ sender: UIBarButtonItem) {
         performSegue(withIdentifier: "rating", sender: nil)
-        
     }
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var commentBox: UITextField!
@@ -23,6 +22,7 @@ class StoryDetailsController: UIViewController, UITableViewDelegate, UITableView
         self.commentBox.text = nil
     }
     var story: Story?
+    
     var comment = [Comment](){
         didSet{
             tableView.reloadData()
@@ -33,6 +33,7 @@ class StoryDetailsController: UIViewController, UITableViewDelegate, UITableView
         super.viewDidLoad()
         self.navigationItem.title = String(story?.title?.prefix(20) ?? "")
         tableView.tableFooterView = UIView()
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadTableView(_:)), name: NSNotification.Name.init(rawValue: "ReloadTableView"), object: nil)
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -79,6 +80,16 @@ class StoryDetailsController: UIViewController, UITableViewDelegate, UITableView
         }
     }
     
+    @objc func reloadTableView(_ sender: Notification) {
+        if let ratings = sender.userInfo?["rating"] as? Double {
+            story?.rating = ratings
+        }
+        tableView.reloadData()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
     
 }
 

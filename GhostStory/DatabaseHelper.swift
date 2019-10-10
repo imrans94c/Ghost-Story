@@ -19,10 +19,10 @@ final class DatabaseHelper {
         let userId = GIDSignIn.sharedInstance()?.currentUser.userID
         if let key = ref.childByAutoId().key {
             let dictionary: [String : Any] = ["id" : key,
-                          "userId" : userId ?? "",
-                          "title": story.title ?? "",
-                          "preview" : story.description ?? "",
-                          "rating": story.rating]
+                                              "userId" : userId ?? "",
+                                              "title": story.title ?? "",
+                                              "preview" : story.description ?? "",
+                                              "rating": story.rating]
             ref.child("Stories").child(key).setValue(dictionary)
         }
     }
@@ -34,12 +34,12 @@ final class DatabaseHelper {
                 for object in allObjects {
                     if let obj = object.value as? Dictionary<String, Any>,
                         let title = obj["title"] as? String,
-                    let preview = obj["preview"] as? String,
-                    let rating = obj["rating"] as? Double,
-                    let id = obj["id"] as? String {
+                        let preview = obj["preview"] as? String,
+                        let rating = obj["rating"] as? Double,
+                        let id = obj["id"] as? String {
                         stories.append(Story(title: title, description: preview, rating: rating, id: id))
                     } else {
-                        print("\n\nData fetch or mapping issue.\n\n")
+                        print("\n\nStories fetch or mapping issue.\n\n")
                     }
                 }
                 stories = stories.reversed()
@@ -52,7 +52,7 @@ final class DatabaseHelper {
     func insertComment(_ comment : Comment){
         if let key = ref.childByAutoId().key {
             let dictionary: [String : Any] = ["story_id": comment.storyId ?? "", "user_id": comment.userId ?? "",
-                "comment": comment.comment ?? ""]
+                                              "comment": comment.comment ?? ""]
             ref.child("Comments").child(key).setValue(dictionary)
         }
     }
@@ -63,7 +63,11 @@ final class DatabaseHelper {
             ref.child("Ratings").child(key).setValue(dictionary)
         }
     }
-
+    
+    func saveAvgRating(_ avgrating : Double, _ storyId : String ){
+        ref.child("Stories").child(storyId).child("rating").setValue(avgrating)
+    }
+    
     func getStoryComments(_ storyId: String, completion: @escaping (_ comments: [Comment])->Void){
         ref.child("Comments").queryOrdered(byChild: "story_id").queryEqual(toValue: storyId).observe(.value) { (snap) in
             var comments: [Comment] = []
@@ -73,7 +77,7 @@ final class DatabaseHelper {
                         let comment = obj["comment"] as? String{
                         comments.append(Comment(comment: comment))
                     }else{
-                        print("\n\nData fetch or mapping issue.\n\n")
+                        print("\n\nComments fetch or mapping issue.\n\n")
                     }
                 }
             }
@@ -81,24 +85,22 @@ final class DatabaseHelper {
         }
     }
     
-    
-//    func getStoryRatings(_ storyId: String, completion: @escaping (_ ratings: [Rating])->Void){
-//        ref.child("Ratings").queryOrdered(byChild: "story_id").queryEqual(toValue: storyId).observe(.value) { (snap) in
-//            var ratings: [Rating] = []
-//            if let allObjects = snap.children.allObjects as? [DataSnapshot]{
-//                for object in allObjects {
-//                    if let obj = object.value as? Dictionary<String, Any>,
-//                        let rating = obj["rating"] as? Double{
-//                        ratings.append(Rating(rating: rating))
-//
-//                    }else{
-//                        print("\n\nData fetch or mapping issue.\n\n")
-//                    }
-//                }
-//            }
-//            completion(ratings)
-//        }
-//    }
+    func getStoryRatings(_ storyId: String, completion: @escaping (_ ratings: [Rating])->Void){
+        ref.child("Ratings").queryOrdered(byChild: "story_id").queryEqual(toValue: storyId).observe(.value) { (snap) in
+            var ratings: [Rating] = []
+            if let allObjects = snap.children.allObjects as? [DataSnapshot]{
+                for object in allObjects {
+                    if let obj = object.value as? Dictionary<String, Any>,
+                        let rating = obj["rating"] as? Double{
+                        ratings.append(Rating(storyId: storyId, rating: rating))
+                    } else {
+                        print("\n\nStory Rating fetch or mapping issue.\n\n")
+                    }
+                }
+            }
+            completion(ratings)
+        }
+    }
     
     func myStory(completion: @escaping(_ stories: [Story])-> ()) {
         let userId = GIDSignIn.sharedInstance()?.currentUser.userID
@@ -118,4 +120,35 @@ final class DatabaseHelper {
             }
         }
     }
+    
+    
+    func getUserRating(storyId: String, completion: @escaping (_ curentUserRating: Rating) -> Void){
+        if let user = GIDSignIn.sharedInstance()?.currentUser {
+            ref.child("Ratings").queryOrdered(byChild: "user_id").queryEqual(toValue: user.userID).observe(.value){
+                (snap) in
+                
+                var currentUserRating: [Rating] = []
+                if let allObjects = snap.children.allObjects as? [DataSnapshot]{
+                    for object in allObjects {
+                        if let obj = object.value as? Dictionary<String, Any>,
+                            let rating = obj["rating"] as? Double,
+                            let story_id = obj["story_id"] as? String {
+                            currentUserRating.append(Rating(storyId: story_id, userId: user.userID, rating: rating))
+                        } else {
+                            print("\n\nUser Rating fetch or mapping issue.\n\n")
+                        }
+                    }
+                    currentUserRating = currentUserRating.filter { $0.storyId == storyId }
+                    print(currentUserRating)
+                    if !currentUserRating.isEmpty {
+                        completion(currentUserRating.last!)
+                    }
+                }
+                
+            }
+        }
+    }
+    
+    
+    
 }
